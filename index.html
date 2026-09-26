@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="referrer" content="origin" />
+<title>Musememo — video embed</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+<script>
+  // このページは実際に公開されている本物のドメイン（GitHub Pages）から YouTube を
+  // 埋め込むための中継ページ。Capacitor アプリ内（見た目上のドメインでしかない
+  // app.musememo.com、実際には DNS が引けない）から直接 YouTube を埋め込むと
+  // Error 153 / 150（Video Player Configuration Error）になる問題を避けるため、
+  // 本物の HTTPS ドメインを経由させる。
+  //
+  // YouTube からの postMessage（onReady/onStateChange/onError 等）は、直接の
+  // 親ウィンドウにしか届かない仕様のため、このページがそれを一段中継し、
+  // window.parent（アプリ本体）へそのまま転送する。
+  var params = new URLSearchParams(location.search);
+  var videoId = params.get('v') || '';
+  var start   = params.get('start') || '0';
+  var mute    = params.get('mute') || '1';
+  var origin  = params.get('origin') || (location.origin);
+
+  var embedParams = new URLSearchParams({
+    autoplay: '1',
+    mute: mute,
+    start: start,
+    rel: '0',
+    playsinline: '1',
+    modestbranding: '1',
+    enablejsapi: '1',
+    origin: origin,
+  });
+
+  var iframe = document.createElement('iframe');
+  iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?' + embedParams.toString();
+  iframe.allow = 'autoplay; encrypted-media; picture-in-picture; web-share';
+  iframe.allowFullscreen = true;
+  iframe.referrerPolicy = 'origin';
+  iframe.setAttribute('playsinline', 'true');
+  iframe.setAttribute('webkit-playsinline', 'true');
+  document.body.appendChild(iframe);
+
+  // YouTube → このページ → アプリ本体（window.parent）へそのまま中継する
+  window.addEventListener('message', function (event) {
+    if (event.source !== iframe.contentWindow) return; // YouTube からのメッセージだけ転送
+    try { window.parent.postMessage(event.data, '*'); } catch (e) { /* ignore */ }
+  });
+</script>
+</body>
+</html>
